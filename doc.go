@@ -1,2 +1,2 @@
-// Package goidentityproofing provides the starting point for the task.
+// Package-level documentation lives in types.go next to the core types.
 package goidentityproofing
