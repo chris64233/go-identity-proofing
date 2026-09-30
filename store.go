@@ -34,6 +34,9 @@ type sessionRecord struct {
 	pastChallengeHashes map[string]struct{}
 	challengeExpiresAt  int64
 	challengeRotations  int
+	// challengeTTL is the frozen per-session challenge lifetime in
+	// seconds, so rotated challenges keep the TTL chosen at creation.
+	challengeTTL int64
 
 	proofs       map[ProofType]*proofRecord
 	credentialID string

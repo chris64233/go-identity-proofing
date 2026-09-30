@@ -14,7 +14,9 @@
    - 必需证明类型（排序去重）、申请人信息**密钥化摘要**（HMAC-SHA256，进程随机
      密钥、不落盘）和会话截止时间在创建时冻结，之后不可更改。
    - 挑战为 24 字节 `crypto/rand` 随机串，只在 `SessionHandle` 中以明文返回一次；
-     存储层只保留其 HMAC 哈希。挑战有效期默认 5 分钟，且不超过会话截止时间。
+     存储层只保留其 HMAC 哈希。挑战有效期默认 5 分钟（可按会话用
+     `CreateSessionRequest.ChallengeTTL` 覆盖，该值随会话冻结，后续轮换继续沿用），
+     且不超过会话截止时间。
    - 挑战**只能使用一次**：回执被接受（成功或失败）即消费当前挑战，之后必须调用
      `RotateChallenge` 取得新挑战才能提交下一项证明。
    - 申请人证件号等敏感信息、挑战明文不会出现在持久化数据、日志、错误消息或审计
@@ -115,7 +117,8 @@ svc.SubmitReceipt(ctx, sameReceipt)
 `MemoryStore.mutate` 的临界区对应一条数据库事务，记录类型对应表：
 
 - `sessions(id PK, state, required_proofs, applicant_digest, deadline, created_at,
-  challenge_hash, challenge_expires_at, challenge_rotations, credential_id)`
+  challenge_hash, challenge_expires_at, challenge_rotations, challenge_ttl,
+  credential_id)`
 - `session_challenges(session_id, hash, status)` —— 已签发挑战集合，用于区分
   stale / mismatch（内存实现中为 `pastChallengeHashes`）
 - `session_proofs(session_id, proof_type, status, receipt_no, reason,

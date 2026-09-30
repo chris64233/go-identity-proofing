@@ -177,6 +177,42 @@ func TestCreateSession_ChallengeTTLClampedToDeadline(t *testing.T) {
 	}
 }
 
+func TestRotateChallenge_KeepsSessionChallengeTTL(t *testing.T) {
+	env := newTestEnv(t) // configured default challenge TTL is 2m
+	h, err := env.svc.CreateSession(context.Background(), CreateSessionRequest{
+		Applicant:      sampleApplicant(),
+		RequiredProofs: []ProofType{ProofIDDocument, ProofLiveness},
+		TTL:            10 * time.Minute,
+		ChallengeTTL:   30 * time.Second, // per-session override
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := env.clock.Load()
+	if h.ChallengeExpiresAt != base+30 {
+		t.Fatalf("initial challenge expiry = %d, want %d", h.ChallengeExpiresAt, base+30)
+	}
+	// The per-session TTL is frozen at creation: rotations must reuse it,
+	// not fall back to the service default.
+	env.advance(10)
+	h2, err := env.svc.RotateChallenge(context.Background(), h.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := env.clock.Load() + 30; h2.ChallengeExpiresAt != want {
+		t.Fatalf("rotated challenge expiry = %d, want %d", h2.ChallengeExpiresAt, want)
+	}
+	// ... and it is still clamped to the session deadline.
+	env.clock.Store(h.Deadline - 5)
+	h3, err := env.svc.RotateChallenge(context.Background(), h.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h3.ChallengeExpiresAt != h.Deadline {
+		t.Fatalf("rotated challenge expiry = %d, want clamped deadline %d", h3.ChallengeExpiresAt, h.Deadline)
+	}
+}
+
 func TestCreateSession_ApplicantDigestFreezesInput(t *testing.T) {
 	env := newTestEnv(t)
 	h1 := env.createSession(t, 600, ProofIDDocument)
@@ -235,6 +271,7 @@ func TestCreateSession_Validation(t *testing.T) {
 		func(r *CreateSessionRequest) { r.RequiredProofs = nil },
 		func(r *CreateSessionRequest) { r.RequiredProofs = []ProofType{" "} },
 		func(r *CreateSessionRequest) { r.TTL = 0 },
+		func(r *CreateSessionRequest) { r.ChallengeTTL = -time.Second },
 	}
 	for i, mutate := range cases {
 		req := base

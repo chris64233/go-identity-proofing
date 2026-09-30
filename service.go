@@ -191,6 +191,9 @@ func (s *Service) CreateSession(ctx context.Context, req CreateSessionRequest) (
 	if req.TTL <= 0 {
 		return nil, fmt.Errorf("%w: session TTL must be positive", ErrInvalidArgument)
 	}
+	if req.ChallengeTTL < 0 {
+		return nil, fmt.Errorf("%w: challenge TTL must not be negative", ErrInvalidArgument)
+	}
 	proofs, err := normalizeProofs(req.RequiredProofs)
 	if err != nil {
 		return nil, err
@@ -230,6 +233,7 @@ func (s *Service) CreateSession(ctx context.Context, req CreateSessionRequest) (
 		pastChallengeHashes: map[string]struct{}{},
 		challengeExpiresAt:  challengeExp,
 		challengeRotations:  0,
+		challengeTTL:        int64(challengeTTL / time.Second),
 		proofs:              proofMap,
 	}
 	appendAudit(sess, now, AuditSessionCreated, fmt.Sprintf("proofs=%d", len(proofs)), "")
@@ -622,7 +626,7 @@ func (s *Service) RotateChallenge(ctx context.Context, sessionID string) (*Sessi
 		}
 		sess.challengeHash = chHash
 		sess.challengeRotations++
-		exp := now + int64(s.ttl/time.Second)
+		exp := now + sess.challengeTTL
 		if exp > sess.deadline {
 			exp = sess.deadline
 		}
