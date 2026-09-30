@@ -42,10 +42,10 @@ type sessionRecord struct {
 
 // receiptRecord preserves the first processing of a receipt number so that
 // replays return the original outcome. The stored content is a fingerprint,
-// never the plaintext challenge (the fingerprint is an unkeyed SHA-256 of
-// content that includes the high-entropy challenge, so it cannot be used to
-// verify guesses offline at meaningful cost — and the plaintext itself is
-// never logged).
+// never the plaintext challenge (the fingerprint is a keyed HMAC-SHA256 over
+// the canonical content including the high-entropy challenge, under the
+// process-local secret that never leaves the process, so it cannot be used to
+// verify guesses offline — and the plaintext itself is never logged).
 type receiptRecord struct {
 	key         string
 	receiptNo   string

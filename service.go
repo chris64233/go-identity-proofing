@@ -412,15 +412,19 @@ func (s *Service) SubmitReceipt(ctx context.Context, r Receipt) (*ReceiptResult,
 			status = ProofFailed
 			auditKind = AuditReceiptFailed
 		}
+		// Failure reasons are caller-provided free text that reaches storage
+		// and audit detail; sanitize them so they cannot inject log/audit
+		// control characters or grow unbounded.
+		safeReason := sanitizeReason(r.Reason)
 		sess.proofs[r.Proof] = &proofRecord{
 			typ:       r.Proof,
 			status:    status,
 			receiptNo: r.ReceiptNo,
-			reason:    r.Reason,
+			reason:    safeReason,
 		}
 		detail := "proof_" + string(status)
-		if status == ProofFailed && r.Reason != "" {
-			detail += ":" + r.Reason
+		if status == ProofFailed && safeReason != "" {
+			detail += ":" + safeReason
 		}
 		appendAudit(sess, now, auditKind, detail, r.ReceiptNo)
 

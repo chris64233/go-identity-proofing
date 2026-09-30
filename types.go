@@ -114,7 +114,8 @@ type Receipt struct {
 	// Success reports the provider's verification decision.
 	Success bool
 	// Reason is a short, NON-SENSITIVE failure reason (e.g. "no_match").
-	// It must never contain document numbers or other PII; it is stored.
+	// It must never contain document numbers or other PII; it is sanitized
+	// (control characters stripped, length bounded) before being stored.
 	Reason string
 	// IssuedAt is the provider timestamp (informational; the service clock
 	// decides expiry).
